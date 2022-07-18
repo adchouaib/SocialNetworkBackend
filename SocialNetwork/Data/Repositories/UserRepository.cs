@@ -1,4 +1,5 @@
-﻿using SocialNetwork.Data.IRepositories;
+﻿using AutoMapper;
+using SocialNetwork.Data.IRepositories;
 using SocialNetwork.DTOs;
 using SocialNetwork.Models;
 
@@ -8,10 +9,12 @@ namespace SocialNetwork.Data.Repositories
     {
 
         private readonly DataContext _context;
+        private readonly IMapper _mapper;
 
-        public UserRepository(DataContext context)
+        public UserRepository(DataContext context , IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
         public async Task<UserDTO> addUser(User user)
@@ -22,15 +25,7 @@ namespace SocialNetwork.Data.Repositories
                 await context.SaveChangesAsync();
             }
 
-            UserDTO userDTO = new UserDTO()
-            {
-                Id = user.Id,
-                Avatar = user.Avatar,
-                BirthDate = user.BirthDate,
-                Description = user.Description,
-                FullName = user.FullName,
-                Work = user.Work,
-            };
+            UserDTO userDTO = _mapper.Map<UserDTO>(user);
             return await Task.FromResult(userDTO);
         }
 
@@ -52,15 +47,7 @@ namespace SocialNetwork.Data.Repositories
             using(var context = _context)
             {
                 UserDTO? user = await context.Users
-                                          .Select(u => new UserDTO()
-                                          {
-                                              Id = u.Id,
-                                              Avatar = u.Avatar,
-                                              BirthDate = u.BirthDate,
-                                              Description = u.Description,
-                                              FullName = u.FullName,
-                                              Work = u.Work,
-                                          })
+                                          .Select(u => _mapper.Map<UserDTO>(u))
                                           .FirstOrDefaultAsync(u => u.Id == id);
                 return await Task.FromResult(user);
             }
@@ -80,15 +67,7 @@ namespace SocialNetwork.Data.Repositories
             using(var context = _context)
             {
                 List<UserDTO> users = await context.Users
-                                                .Select(u => new UserDTO()
-                                                {
-                                                    Id = u.Id,
-                                                    Avatar = u.Avatar,
-                                                    BirthDate = u.BirthDate,
-                                                    Description = u.Description,
-                                                    FullName = u.FullName,
-                                                    Work = u.Work,
-                                                })
+                                                .Select(u => _mapper.Map<UserDTO>(u))
                                                 .ToListAsync();
                 return await Task.FromResult(users);
             }
@@ -109,15 +88,7 @@ namespace SocialNetwork.Data.Repositories
                     
                     await context.SaveChangesAsync();
 
-                    UserDTO userDTO = new UserDTO()
-                    {
-                        Id = oldUser.Id,
-                        Avatar = oldUser.Avatar,
-                        BirthDate = oldUser.BirthDate,
-                        Description = oldUser.Description,
-                        FullName = oldUser.FullName,
-                        Work = oldUser.Work,
-                    };
+                    UserDTO userDTO = _mapper.Map<UserDTO>(oldUser);
 
                     return await Task.FromResult(userDTO);
                 }

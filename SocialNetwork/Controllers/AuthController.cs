@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -19,25 +20,20 @@ namespace SocialNetwork.Controllers
 
         private readonly IUserRepository _userRepository;
         private readonly IConfiguration _config;
+        private readonly IMapper _mapper;
 
-        public AuthController(IUserRepository userRepository, IConfiguration configuration)
+        public AuthController(IUserRepository userRepository, IConfiguration configuration, IMapper mapper)
         {
             _userRepository = userRepository;
             _config = configuration;
-        }
+            _mapper = mapper;
+         }
 
 
         [HttpPost("register")]
         public async Task<ActionResult<User>> Register(UserRegisterDTO requestUser)
         {
-            User user = new User();
-
-            user.Email = requestUser.Email;
-            user.FullName = requestUser.FullName;
-            user.Avatar = requestUser.Avatar;
-            user.Work = requestUser.Work;
-            user.BirthDate = requestUser.BirthDate;
-            user.Description = requestUser.Description;
+            User user = _mapper.Map<User>(requestUser);
             
             CreatePasswordHash(requestUser.Password, out byte[] passwordHash, out byte[] passwordSalt);
 

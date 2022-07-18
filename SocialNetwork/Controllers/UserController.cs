@@ -1,8 +1,11 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using MediatR;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SocialNetwork.Commands;
 using SocialNetwork.Data.IRepositories;
 using SocialNetwork.DTOs;
+using SocialNetwork.Queries;
 
 namespace SocialNetwork.Controllers
 {
@@ -10,51 +13,47 @@ namespace SocialNetwork.Controllers
     [ApiController]
     public class UserController : Controller
     {
-        private readonly IUserRepository _userRepository;
-        public UserController(IUserRepository userRepository)
+        
+        private readonly IMediator _mediator;
+
+        public UserController(IMediator mediator)
         {
-            _userRepository = userRepository;
+            _mediator = mediator;
         }
 
         [HttpGet]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<List<UserDTO>>> Get()
         {
-            return Ok(await _userRepository.getUsers());
+            var Query = new GetUsers();
+            var Result = await _mediator.Send(Query);
+            return Ok(Result);
         }
 
         [HttpGet("{id}")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<UserDTO>> Get(Guid id)
         {
-            var User = await _userRepository.getUserById(id);
-            if (User == null)
-                return BadRequest(new { id = id });
-            return Ok(User);
+            var Query = new GetUserById(id);
+            var Result = await _mediator.Send(Query);
+            return Result != null ? Ok(Result) : NotFound("User Not Found");
         }
-
-        //[HttpPost]
-        //public async Task<ActionResult<UserDTO>> Post(User user)
-        //{
-        //    UserDTO newUser = await _userRepository.addUser(user);
-        //    return Ok(newUser);
-        //}
 
         [HttpPut]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<UserDTO>> Put(UserDTO user)
         {
-            UserDTO newUser = await _userRepository.updateUser(user);
-            if (newUser == null)
-                return BadRequest("could not be updated");
-            return Ok(newUser);
+            UpdateUserCommand command = new UpdateUserCommand(user);
+            var result = await _mediator.Send(command);
+            return result == null ? BadRequest("could not be updated") : Ok(result);
         }
 
         [HttpDelete]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult> Delete(Guid id)
         {
-            await _userRepository.deleteUser(id);
+            DeleteUserCommand command = new DeleteUserCommand(id);
+            await _mediator.Send(command);
             return Ok("user Deleted");
         }
     }

@@ -1,4 +1,5 @@
-﻿using SocialNetwork.Data.IRepositories;
+﻿using AutoMapper;
+using SocialNetwork.Data.IRepositories;
 using SocialNetwork.DTOs;
 using SocialNetwork.Models;
 
@@ -8,10 +9,12 @@ namespace SocialNetwork.Data.Repositories
     {
 
         private readonly DataContext _context;
+        private readonly IMapper _mapper;
 
-        public FriendRepository(DataContext context)
+        public FriendRepository(DataContext context , IMapper mapper )
         {
             _context = context;
+            _mapper = mapper;
         }
 
         public async Task Accept(Guid senderId, Guid receiverId)
@@ -52,19 +55,10 @@ namespace SocialNetwork.Data.Repositories
                 List<PostDTO> friendsPosts = await context.Posts.Include(p => p.User)
                                                           .Where(p => userFriends.Contains(p.User.Id) || p.User.Id == userId)
                                                           .OrderByDescending(p => p.CreatedDate)
-                                                          .Select(p => new PostDTO
-                                                          {
-                                                             Id = p.Id,
-                                                             AuthorAvatar = p.User.Avatar,
-                                                             AuthorId = p.User.Id.ToString(),
-                                                             AuthorName = p.User.FullName,
-                                                             Content = p.Content,
-                                                             CreatedDate = p.CreatedDate.ToString("MM/dd/yyyy"),
-                                                             Description = p.Description,
-                                                             IsLikedByUser = context.Likes.FirstOrDefault(l => l.UserId == userId && l.PostId == p.Id) != null,
-                                                             Title = p.Title,
-                                                          })
+                                                          .Select(p => _mapper.Map<PostDTO>(p))
                                                           .ToListAsync();
+
+                friendsPosts.ForEach(fp => fp.IsLikedByUser = context.Likes.FirstOrDefault(l => l.UserId == userId && l.PostId == fp.Id) != null);
 
                 return await Task.FromResult(friendsPosts);
             }
@@ -94,15 +88,7 @@ namespace SocialNetwork.Data.Repositories
 
                 List<UserDTO> NonUserFriends = await context.Users
                                                             .Where(u => !UserFriends.Contains(u.Id))
-                                                            .Select(u => new UserDTO
-                                                            {
-                                                                Avatar = u.Avatar,
-                                                                BirthDate = u.BirthDate,
-                                                                Description = u.Description,
-                                                                FullName = u.FullName,
-                                                                Id = u.Id,
-                                                                Work = u.Work,
-                                                            })
+                                                            .Select(u => _mapper.Map<UserDTO>(u))
                                                             .ToListAsync(); 
 
                 return await Task.FromResult(NonUserFriends);
@@ -117,30 +103,14 @@ namespace SocialNetwork.Data.Repositories
                                                     .Include(p => p.User1)
                                                     .Include(p => p.Status)
                                                     .Where(p => (p.User1Id == userId || p.User2Id == userId) && p.Status.StatusName == Status.ACCEPTED )
-                                                    .Select(p => new UserDTO()
-                                                    {
-                                                        Avatar = p.User1.Avatar,
-                                                        BirthDate = p.User1.BirthDate,
-                                                        Description = p.User1.Description,
-                                                        FullName = p.User1.FullName,
-                                                        Id = p.User1.Id,
-                                                        Work = p.User1.Work,
-                                                    })
+                                                    .Select(p => _mapper.Map<UserDTO>(p.User1))
                                                     .ToListAsync();
 
                 List<UserDTO> UserFriendsPart2 = await context.Friends
                                                     .Include(p => p.User2)
                                                     .Include(p => p.Status)
                                                     .Where(p => (p.User1Id == userId || p.User2Id == userId) && p.Status.StatusName == Status.ACCEPTED)
-                                                    .Select(p => new UserDTO()
-                                                    {
-                                                        Avatar = p.User2.Avatar,
-                                                        BirthDate = p.User2.BirthDate,
-                                                        Description = p.User2.Description,
-                                                        FullName = p.User2.FullName,
-                                                        Id = p.User2.Id,
-                                                        Work = p.User2.Work,
-                                                    })
+                                                    .Select(p => _mapper.Map<UserDTO>(p.User2))
                                                     .ToListAsync();
 
                 List<UserDTO> UserFriends = UserFriendsPart1.Concat(UserFriendsPart2).ToList();
@@ -156,15 +126,7 @@ namespace SocialNetwork.Data.Repositories
                                                    .Include(f => f.Status)
                                                    .Include(f => f.User1)
                                                    .Where(f => f.User2Id == userId && f.Status.StatusName == Status.PENDING)
-                                                   .Select(f => new UserDTO()
-                                                   {
-                                                       Id = f.User1.Id,
-                                                       Avatar = f.User1.Avatar,
-                                                       BirthDate= f.User1.BirthDate,
-                                                       Description = f.User1.Description,
-                                                       FullName= f.User1.FullName,
-                                                       Work = f.User1.Work
-                                                   })
+                                                   .Select(f => _mapper.Map<UserDTO>(f.User2))
                                                    .ToList();
 
                 return await Task.FromResult(invitations);

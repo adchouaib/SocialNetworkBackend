@@ -1,10 +1,15 @@
 ﻿using AutoMapper;
+using FluentValidation.Results;
+using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SocialNetwork.Commands;
 using SocialNetwork.Data.IRepositories;
 using SocialNetwork.DTOs;
+using SocialNetwork.Helpers.Validators;
 using SocialNetwork.Models;
+using SocialNetwork.Queries;
 using System.Security.Claims;
 
 namespace SocialNetwork.Controllers
@@ -14,78 +19,78 @@ namespace SocialNetwork.Controllers
     public class PostController : Controller
     {
 
-        private readonly IPostRepository _postRepository;
-        private readonly IMapper _mapper;
+        private readonly IMediator _mediator;
 
-        public PostController(IPostRepository postRepository, IMapper mapper)
+        public PostController(IMediator mediator)
         {
-            _postRepository = postRepository;
-            _mapper = mapper;
+            _mediator = mediator;
         }
 
         [HttpGet]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<List<PostDTO>>> Get()
         {
-            List<PostDTO> posts = await _postRepository.GetPosts();
-            return Ok(posts);
+            var Query = new GetAllPosts();
+            var Result = await _mediator.Send(Query);
+            return Ok(Result);
         }
 
         [HttpGet("WithLikes")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<List<PostDTO>>> GetWithLike()
         {
-            Guid userID = new Guid(User.FindFirstValue("id"));
-            List<PostDTO> posts = await _postRepository.GetPosts(userID);
-            return Ok(posts);
+            var Query = new GetPostsWithLikes(new Guid(User.FindFirstValue("id")));
+            var Result = await _mediator.Send(Query);
+            return Ok(Result);
         }
 
         [HttpPost]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<ActionResult<Post>> Post(AddPostDto post)
+        public async Task<ActionResult<PostDTO>> Post(AddPostDto postDto)
         {
-            Post newPost = new Post()
+            try
             {
-                AuthorId = post.AuthorId,
-                Content = post.Content,
-                Description = post.Description,
-                Title = post.Title,
-            };
-
-            await _postRepository.addPost(newPost);
-            return Ok(newPost);
+                AddPostCommand command = new AddPostCommand(postDto.Title, postDto.Description, postDto.Content, new Guid(User.FindFirstValue("id")));
+                var Result = await _mediator.Send(command);
+                return Ok("Created");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            } 
         }
 
         [HttpGet("{id}")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<PostDTO>> Get(Guid id)
         {
-            var Post = _postRepository.getPostById(id);
-            if (Post == null)
-            {
-                return NotFound("Post not found");
-            }
-            else
-            {
-                return Ok(Post);
-            }
+            var Query = new GetPostById(id);
+            var Result = await _mediator.Send(Query);
+            return Result != null ? Ok(Result) : NotFound("Post not found");
         }
 
         [HttpPut]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<ActionResult<PostDTO>> Put(PostDTO postDto, Guid PostId)
+        public async Task<ActionResult<PostDTO>> Put([FromBody] UpdatePostCommand command)
         {
-            var Post = await _postRepository.updatePost(postDto, PostId);
-            if (Post == null)
-                return NotFound("Post Not Found");
-            return Ok(Post);
+            try
+            {
+                var Result = await _mediator.Send(command);
+                return Result != null ? Ok(Result) : NotFound("Post Not Found");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            
         }
 
         [HttpDelete]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task Delete(Guid id)
         {
-            await _postRepository.deletePost(id);
+            DeletePostCommand command = new DeletePostCommand(id);
+            var Result = _mediator.Send(command);
         }
 
         [HttpPost("Like")]
@@ -93,16 +98,17 @@ namespace SocialNetwork.Controllers
         public async Task Post(Guid postId)
         {
             Guid userID = new Guid(User.FindFirstValue("id"));
-            await _postRepository.LikePost(userID, postId);
+            LikePostCommand command = new LikePostCommand(postId, userID);
+            await _mediator.Send(command);
         }
 
         [HttpGet("isLiked")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<bool>> IsLiked(Guid postId)
         {
-            Guid userID = new Guid(User.FindFirstValue("id"));
-            bool isLiked = await _postRepository.IsPostLiked(postId, userID);
-            return Ok(isLiked);
+            var Query = new IsLicked(new Guid(User.FindFirstValue("id")), postId);
+            var Result = _mediator.Send(Query);
+            return Ok(Result);
         }
     }
 

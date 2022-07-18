@@ -1,8 +1,12 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using MediatR;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SocialNetwork.Commands;
 using SocialNetwork.Data.IRepositories;
 using SocialNetwork.DTOs;
+using SocialNetwork.Helpers.Validators;
+using SocialNetwork.Queries;
 using System.Security.Claims;
 
 namespace SocialNetwork.Controllers
@@ -11,11 +15,11 @@ namespace SocialNetwork.Controllers
     [ApiController]
     public class FriendController : Controller
     {
-        private readonly IFriendRepository _friendRepository;
+        private readonly IMediator _mediator;
 
-        public FriendController(IFriendRepository friendRepository)
+        public FriendController(IMediator mediator)
         {
-            _friendRepository = friendRepository;
+            _mediator = mediator;
         }
 
         [HttpGet("Friends")]
@@ -24,9 +28,9 @@ namespace SocialNetwork.Controllers
         {
             try
             {
-                Guid UserId = new Guid(User.FindFirstValue("id"));
-                List<UserDTO> userDTOs = await _friendRepository.GetUserFriends(UserId);
-                return Ok(userDTOs);
+                var Query = new GetFriends(new Guid(User.FindFirstValue("id")));
+                var Result = await _mediator.Send(Query);
+                return Ok(Result);
             }
             catch(Exception ex)
             {
@@ -38,35 +42,35 @@ namespace SocialNetwork.Controllers
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<List<UserDTO>>> GetNonFriends()
         {
-            Guid UserId = new Guid(User.FindFirstValue("id"));
-            List<UserDTO> userDTOs = await _friendRepository.GetNonUserFriends(UserId);
-            return Ok(userDTOs);
+            var Query = new GetNonFriends(new Guid(User.FindFirstValue("id")));
+            var Result = await _mediator.Send(Query);
+            return Ok(Result);
         }
 
         [HttpGet("FriendsPosts")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<List<UserDTO>>> GetFriendsPosts()
         {
-            Guid UserId = new Guid(User.FindFirstValue("id"));
-            List<PostDTO> posts = await _friendRepository.GetFriendsPosts(UserId);
-            return Ok(posts);
+            var Query = new GetFriendsPosts(new Guid(User.FindFirstValue("id")));
+            var Result = await _mediator.Send(Query);
+            return Ok(Result);
         }
 
         [HttpGet("Invitations")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<List<UserDTO>>> GetInvitations()
         {
-            Guid UserId = new Guid(User.FindFirstValue("id"));
-            List<UserDTO> invitations = await _friendRepository.GetUserInvitations(UserId);
-            return Ok(invitations);
+            var Query = new GetInvitations(new Guid(User.FindFirstValue("id")));
+            var Result = _mediator.Send(Query);
+            return Ok(Result);
         }
 
         [HttpPost("Invite")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult> Invite(Guid receiverId)
         {
-            Guid senderId = new Guid(User.FindFirstValue("id"));
-            await _friendRepository.Invite(senderId, receiverId);
+            InviteCommand command = new InviteCommand(new Guid(User.FindFirstValue("id")) , receiverId);
+            await _mediator.Send(command);
             return Ok("user invited");
         }
 
@@ -74,17 +78,17 @@ namespace SocialNetwork.Controllers
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult> Accept(Guid receiverId)
         {
-            Guid senderId = new Guid(User.FindFirstValue("id"));
-            await _friendRepository.Accept(senderId, receiverId);
-            return Ok("user invited");
+            AcceptCommand command = new AcceptCommand(new Guid(User.FindFirstValue("id")), receiverId);
+            var Result = await _mediator.Send(command);
+            return Ok("user accepted");
         }
 
         [HttpPut("Reject")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult> Refuse(Guid receiverId)
         {
-            Guid senderId = new Guid(User.FindFirstValue("id"));
-            await _friendRepository.Refuse(senderId, receiverId);
+            AcceptCommand command = new AcceptCommand(new Guid(User.FindFirstValue("id")), receiverId);
+            var Result = await _mediator.Send(command);
             return Ok("user invited");
         }
 
@@ -92,8 +96,8 @@ namespace SocialNetwork.Controllers
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult> Unfriend(Guid receiverId)
         {
-            Guid senderId = new Guid(User.FindFirstValue("id"));
-            await _friendRepository.Unfriend(senderId, receiverId);
+            UnfriendCommand command = new UnfriendCommand(new Guid(User.FindFirstValue("id")), receiverId);
+            await _mediator.Send(command);
             return Ok("user invited");
         }
 

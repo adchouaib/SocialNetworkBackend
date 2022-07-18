@@ -1,4 +1,5 @@
-﻿using SocialNetwork.Data.IRepositories;
+﻿using AutoMapper;
+using SocialNetwork.Data.IRepositories;
 using SocialNetwork.DTOs;
 using SocialNetwork.Models;
 
@@ -7,18 +8,22 @@ namespace SocialNetwork.Data.Repositories
     public class PostRepository : IPostRepository
     {
         private readonly DataContext _context;
-        public PostRepository(DataContext context)
+        private readonly IMapper _mapper;
+
+        public PostRepository(DataContext context , IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
-        public async Task<Post> addPost(Post post)
+        public async Task<PostDTO> addPost(Post post)
         {
             using (var context = _context)
             {
                 await context.Posts.AddAsync(post);
                 await context.SaveChangesAsync();
-                return await Task.FromResult(post);
+                var newPost = _mapper.Map<PostDTO>(post);
+                return await Task.FromResult(newPost);
             }
         }
 
@@ -35,7 +40,7 @@ namespace SocialNetwork.Data.Repositories
             }
         }
 
-        public async Task<PostDTO> getPostById(Guid id)
+        public async Task<DTOs.PostDTO> getPostById(Guid id)
         {
             using (var context = _context)
             {
@@ -45,17 +50,7 @@ namespace SocialNetwork.Data.Repositories
 
                 if(post != null)
                 {
-                    PostDTO postDTO = new PostDTO()
-                    {
-                        Id = post.Id,
-                        Title = post.Title,
-                        Description = post.Description,
-                        CreatedDate = post.CreatedDate.ToString("MM/dd/yyyy"),
-                        Content = post.Content,
-                        AuthorId = post.User.Id.ToString(),
-                        AuthorAvatar = post.User.Avatar,
-                        AuthorName = post.User.FullName
-                    };
+                    var postDTO = _mapper.Map<PostDTO>(post);
                     return await Task.FromResult(postDTO);
                 }
                 return null;
@@ -69,17 +64,7 @@ namespace SocialNetwork.Data.Repositories
                 List<PostDTO> posts = await context.Posts
                                                 .Include(p => p.User)
                                                 .OrderByDescending(p => p.CreatedDate)
-                                                .Select(p => new PostDTO
-                                                {
-                                                    Id = p.Id,
-                                                    Title = p.Title,
-                                                    Description = p.Description,
-                                                    CreatedDate = p.CreatedDate.ToString("MM/dd/yyyy"),
-                                                    Content = p.Content,
-                                                    AuthorId = p.User.Id.ToString(),
-                                                    AuthorAvatar = p.User.Avatar,
-                                                    AuthorName = p.User.FullName
-                                                })
+                                                .Select(p => _mapper.Map<PostDTO>(p) )
                                                 .ToListAsync();
 
                 return await Task.FromResult(posts);
@@ -93,19 +78,10 @@ namespace SocialNetwork.Data.Repositories
                 List<PostDTO> posts = await context.Posts
                                                 .Include(p => p.User)
                                                 .OrderByDescending(p => p.CreatedDate)
-                                                .Select(p => new PostDTO
-                                                {
-                                                    Id = p.Id,
-                                                    Title = p.Title,
-                                                    Description = p.Description,
-                                                    CreatedDate = p.CreatedDate.ToString("MM/dd/yyyy"),
-                                                    Content = p.Content,
-                                                    AuthorId = p.User.Id.ToString(),
-                                                    AuthorAvatar = p.User.Avatar,
-                                                    AuthorName = p.User.FullName,
-                                                    IsLikedByUser = context.Likes.FirstOrDefault(l => l.UserId == UserId && l.PostId == p.Id) != null,
-                                                })  
+                                                .Select(p =>_mapper.Map<PostDTO>(p))  
                                                 .ToListAsync();
+
+                posts.ForEach(p => p.IsLikedByUser = context.Likes.FirstOrDefault(l => l.UserId == UserId && l.PostId == p.Id) != null);
 
                 return await Task.FromResult(posts);
             }
@@ -136,15 +112,7 @@ namespace SocialNetwork.Data.Repositories
                 oldPost.Content = postdto.Content;
                 await context.SaveChangesAsync();
 
-                PostDTO newPost = new PostDTO()
-                {
-                    Id = oldPost.Id,
-                    AuthorAvatar = postdto.AuthorAvatar,
-                    AuthorName = postdto.AuthorName,
-                    Content = oldPost.Content,
-                    Description = postdto.Description,
-                    Title = postdto.Title,
-                };
+                PostDTO newPost = _mapper.Map<PostDTO>(oldPost);
 
                 return await Task.FromResult(newPost);
             }

@@ -8,7 +8,7 @@ namespace SocialNetwork.Data.IRepositories
         Task<List<PostDTO>> GetPosts();
         Task<PostDTO> getPostById(Guid id);
         Task<List<Post>> GetUsersPosts(Guid id);
-        Task<Post> addPost(Post post);
+        Task<PostDTO> addPost(Post post);
         Task<PostDTO> updatePost(PostDTO postdto, Guid PostId);
         Task deletePost(Guid id);
         Task LikePost(Guid postId , Guid UserId);
